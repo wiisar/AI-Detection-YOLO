@@ -1,0 +1,12 @@
+# Chemin interprete depuis vendor/yolov3 par l'implementation officielle.
+# Cette valeur pointe donc vers le dossier dataset/ a la racine du projet.
+path: ../../dataset
+train: images/train
+val: images/val
+test: images/test
+
+# Remplacez ces exemples par vos vraies classes, dans le meme ordre que
+# les identifiants presents dans les fichiers labels/*.txt.
+names:
+  0: class_a
+  1: class_b

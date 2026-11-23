@@ -1,0 +1,45 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+.venv-*/
+
+# Local datasets and generated training outputs
+dataset/
+dataset_gender/
+datasets/
+runs/
+ft/
+
+# Downloaded/generated model weights
+weights/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.engine
+*.tflite
+*.mlmodel
+
+# Local videos and recordings
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.m4v
+
+# Vendored upstream checkout (kept as its own Git repository)
+vendor/

@@ -1,0 +1,10 @@
+# Chemin relatif a la racine du projet (commande lancee depuis ce dossier).
+path: dataset_gender
+
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: apparence_masculine
+  1: apparence_feminine
