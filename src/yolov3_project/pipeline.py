@@ -6,6 +6,7 @@ import argparse
 import shlex
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -31,6 +32,37 @@ def require_file(value: str | Path, description: str) -> Path:
     if not path.is_file():
         raise SystemExit(f"{description} introuvable : {path}")
     return path
+
+
+def resolved_dataset_config(value: str | Path) -> Path:
+    """Create a temporary dataset config with a project-relative root resolved."""
+    config_path = require_file(value, "Configuration du dataset")
+    try:
+        import yaml
+    except ImportError as exc:
+        raise SystemExit("Installez PyYAML avec `python -m pip install -e .`.") from exc
+
+    with config_path.open(encoding="utf-8") as config_file:
+        config = yaml.safe_load(config_file)
+    if not isinstance(config, dict):
+        raise SystemExit(f"Configuration YAML invalide : {config_path}")
+
+    dataset_root = config.get("path")
+    if dataset_root:
+        root_path = Path(dataset_root).expanduser()
+        if not root_path.is_absolute():
+            root_path = project_path(root_path)
+        config["path"] = str(root_path)
+
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        prefix=f"{config_path.stem}-",
+        suffix=".yaml",
+        delete=False,
+    ) as temporary_file:
+        yaml.safe_dump(config, temporary_file, sort_keys=False, allow_unicode=True)
+        return Path(temporary_file.name)
 
 
 def model_key(value: str) -> str:
@@ -86,7 +118,17 @@ def ultralytics_model(reference: str):
 
 def train(args: argparse.Namespace) -> None:
     backend, reference = select_model(args)
-    data = str(require_file(args.data, "Configuration du dataset"))
+    temporary_data = resolved_dataset_config(args.data)
+    try:
+        train_with_config(args, backend, reference, str(temporary_data))
+    finally:
+        temporary_data.unlink(missing_ok=True)
+
+
+def train_with_config(
+    args: argparse.Namespace, backend: str, reference: str, data: str
+) -> None:
+    """Train with a normalized dataset configuration shared by both backends."""
 
     if backend == "classic":
         command = [
@@ -198,7 +240,17 @@ def predict(args: argparse.Namespace) -> None:
 
 def validate(args: argparse.Namespace) -> None:
     backend, reference = select_model(args)
-    data = str(require_file(args.data, "Configuration du dataset"))
+    temporary_data = resolved_dataset_config(args.data)
+    try:
+        validate_with_config(args, backend, reference, str(temporary_data))
+    finally:
+        temporary_data.unlink(missing_ok=True)
+
+
+def validate_with_config(
+    args: argparse.Namespace, backend: str, reference: str, data: str
+) -> None:
+    """Validate with a normalized dataset configuration shared by both backends."""
 
     if backend == "classic":
         command = [

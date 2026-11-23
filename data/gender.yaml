@@ -1,5 +1,5 @@
-# Chemin relatif a la racine du projet (commande lancee depuis ce dossier).
-path: dataset_gender
+# Dataset genere dans le dossier de preparation voisin.
+path: ../AI-Detection-YOLO-Dataset-Preparation/dataset_gender
 
 train: images/train
 val: images/val

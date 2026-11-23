@@ -25,7 +25,24 @@ python -m pip install -e .
 python yolov3.py check
 ```
 
-## 2. Preparer les donnees
+## 2. Donnees d'entrainement
+
+Ce depot contient uniquement le code d'entrainement, de validation et de
+prediction. Les datasets et leurs outils de preparation sont ranges dans le
+dossier voisin :
+
+```text
+../AI-Detection-YOLO-Dataset-Preparation/
+├── dataset/          # dataset YOLO generique et annotations Open Images
+├── dataset_gender/   # dataset Man/Woman converti au format YOLO
+├── datasets/         # petits datasets de test, dont COCO128
+├── prepare_openimages_gender.py
+└── dataset_inspection.py
+```
+
+Les fichiers `data/*.yaml` de ce depot pointent vers ces dossiers. Le pipeline
+convertit leurs chemins relatifs en chemins absolus avant d'appeler YOLOv3 ou
+Ultralytics.
 
 Le dataset doit avoir le format YOLO suivant :
 
@@ -48,7 +65,7 @@ Pour chaque `images/train/photo.jpg`, il faut un
 class_id x_centre y_centre largeur hauteur
 ```
 
-Les quatre coordonnees sont normalisees entre 0 et 1. Modifiez ensuite
+Les quatre coordonnees sont normalisees entre 0 et 1. Modifiez
 `data/dataset.yaml` pour nommer vos classes. Exemple :
 
 ```yaml
@@ -57,11 +74,6 @@ names:
   1: roi_noir
   2: pion_blanc
 ```
-
-Attention : le dataset Hugging Face `jrahn/yolochess_deepblue` actuellement
-lu par `dataset_inspection.py` contient 511 positions FEN et des coups, mais
-aucune image ni boite englobante. Malgre son nom, ce n'est pas un dataset de
-detection YOLO et il ne peut pas etre passe directement a cette commande.
 
 ## 3. Choisir le modele dans la commande
 
@@ -89,30 +101,6 @@ python yolov3.py predict --model runs/train/custom-yolo/weights/best.pt --source
 ```
 
 Pour un ancien checkpoint YOLOv3 classique, conservez l'option `--weights`.
-
-### Dataset Open Images `Man` / `Woman`
-
-Les CSV Open Images bruts sont ranges dans :
-
-```text
-dataset/openimages/annotations/
-├── train-annotations-bbox.csv
-├── validation-annotations-bbox.csv
-└── test-annotations-bbox.csv
-```
-
-Le script `prepare_openimages_gender.py` filtre `Man` et `Woman`, convertit les
-coordonnees Open Images au format YOLO et telecharge les JPEG selectionnes :
-
-```bash
-source .venv-yolov3/bin/activate
-python prepare_openimages_gender.py --download --workers 16
-```
-
-Par defaut, il produit un sous-ensemble reproductible de 2 000 images
-d'entrainement, 400 de validation et 400 de test dans `dataset_gender/`.
-Les fichiers deja telecharges sont conserves et ignores lors d'une reprise.
-La configuration correspondante est `data/gender.yaml`.
 
 ## 4. Entrainer sur de nouvelles classes
 
@@ -204,10 +192,12 @@ python yolov3.py val \
 - `yolov3.py` : script Python a utiliser.
 - `data/dataset.yaml` : chemins et noms des classes.
 - `data/gender.yaml` : dataset Open Images `Man` / `Woman` converti en YOLO.
-- `prepare_openimages_gender.py` : conversion et telechargement du dataset.
 - `weights/yolov3.pt` : poids YOLOv3 pre-entraines sur COCO.
 - `weights/yolo26n.pt` : poids YOLO26 Nano pre-entraines sur COCO.
 - `vendor/yolov3` : implementation amont, revision
   `34c3f2108b73031647b293a7e73603d90e5a208b`.
+
+La preparation des datasets est documentee dans
+`../AI-Detection-YOLO-Dataset-Preparation/README.md`.
 
 Le code Ultralytics inclus est distribue sous licence AGPL-3.0.

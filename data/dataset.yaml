@@ -1,6 +1,6 @@
-# Chemin interprete depuis vendor/yolov3 par l'implementation officielle.
-# Cette valeur pointe donc vers le dossier dataset/ a la racine du projet.
-path: ../../dataset
+# Chemin relatif a la racine de ce depot. Le pipeline le convertit en chemin
+# absolu avant de lancer YOLOv3 ou Ultralytics.
+path: ../AI-Detection-YOLO-Dataset-Preparation/dataset
 train: images/train
 val: images/val
 test: images/test
