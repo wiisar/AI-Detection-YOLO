@@ -24,6 +24,8 @@ ft/
 
 # Downloaded/generated model weights
 weights/
+checkpoints/
+model_artifacts/
 *.pt
 *.pth
 *.ckpt
@@ -32,6 +34,15 @@ weights/
 *.engine
 *.tflite
 *.mlmodel
+*.mlpackage
+*.torchscript
+*.bin
+*.h5
+*.hdf5
+*.pb
+*.keras
+*.gguf
+*.ggml
 
 # Local videos and recordings
 *.mp4
