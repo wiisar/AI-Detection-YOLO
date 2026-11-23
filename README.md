@@ -1,21 +1,44 @@
-# Projet YOLOv3 et YOLO26
+# AI Detection YOLO
 
-Ce projet utilise le **YOLOv3 original avec backbone Darknet-53**, via
-l'implementation PyTorch officielle d'Ultralytics. Le code amont est place dans
-`vendor/yolov3` et les poids COCO pre-entraines dans `weights/yolov3.pt`.
-Le meme script peut aussi utiliser les modeles Ultralytics recents comme
-YOLO26n. Les poids officiels manquants sont telecharges dans `weights/` lors
-de leur premiere utilisation.
+Interface Python unique pour **entraîner**, **évaluer** et **utiliser en
+inférence** YOLOv3 classique ou un modèle Ultralytics récent.
 
-> Un modele recent peut lui aussi apprendre une nouvelle classe. Le choix de
-> YOLOv3 est donc surtout utile pour respecter le sujet du projet ou comparer
-> une ancienne architecture. Pour un petit dataset, partir des poids COCO est
-> generalement bien meilleur qu'un entrainement complet depuis zero.
+Ce README répond à deux questions :
 
-## 1. Installation
+- **What does the tool do?** Il unifie les commandes `train`, `predict` et
+  `val` pour plusieurs générations de YOLO.
+- **How do I use it?** Les commandes essentielles sont documentées ci-dessous.
 
-Sur cette machine, utilisez Python 3.12 (le `python3` par defaut est une version
-3.15 trop recente pour les roues PyTorch courantes) :
+Pour comprendre le fonctionnement interne, les choix d'architecture, le cycle
+d'entraînement, les métriques et les limites du projet, consultez
+[l'explication technique](docs/PROJECT_EXPLANATION.md).
+
+## Fonctionnalités
+
+- YOLOv3, YOLOv3-SPP et YOLOv3-Tiny via `vendor/yolov3` ;
+- modèles Ultralytics récents et checkpoints personnalisés ;
+- entraînement avec poids pré-entraînés ou depuis zéro ;
+- prédiction sur image, vidéo, dossier, URL, écran ou webcam ;
+- validation avec précision, rappel et mAP ;
+- exécution sur CPU, Apple MPS ou GPU CUDA ;
+- chemins de datasets portables malgré leur stockage hors du dépôt ;
+- sorties, datasets, vidéos et modèles exclus de Git.
+
+```mermaid
+flowchart LR
+    U[Commande utilisateur] --> P[yolov3.py]
+    P --> B{Backend}
+    B -->|YOLOv3 classique| C[vendor/yolov3]
+    B -->|Modèle récent| M[API Ultralytics]
+    D[data/*.yaml] --> P
+    C --> R[runs/]
+    M --> R
+```
+
+## Installation
+
+Python 3.12 est recommandé sur cette machine. Le projet accepte Python
+`>=3.9,<3.15`.
 
 ```bash
 python3.12 -m venv .venv-yolov3
@@ -25,179 +48,327 @@ python -m pip install -e .
 python yolov3.py check
 ```
 
-## 2. Donnees d'entrainement
+La dernière commande affiche les versions installées, la disponibilité de MPS
+et les modèles présents dans `weights/`.
 
-Ce depot contient uniquement le code d'entrainement, de validation et de
-prediction. Les datasets et leurs outils de preparation sont ranges dans le
-dossier voisin :
+## Organisation locale attendue
 
-```text
-../AI-Detection-YOLO-Dataset-Preparation/
-├── dataset/          # dataset YOLO generique et annotations Open Images
-├── dataset_gender/   # dataset Man/Woman converti au format YOLO
-├── datasets/         # petits datasets de test, dont COCO128
-├── prepare_openimages_gender.py
-└── dataset_inspection.py
-```
-
-Les fichiers `data/*.yaml` de ce depot pointent vers ces dossiers. Le pipeline
-convertit leurs chemins relatifs en chemins absolus avant d'appeler YOLOv3 ou
-Ultralytics.
-
-Le dataset doit avoir le format YOLO suivant :
+Le code et les données sont volontairement séparés :
 
 ```text
-dataset/
-├── images/
-│   ├── train/
-│   ├── val/
-│   └── test/       # facultatif
-└── labels/
-    ├── train/
-    ├── val/
-    └── test/       # facultatif
+AI/
+├── AI-Detection-YOLO/
+│   ├── data/                  # configurations YAML
+│   ├── src/                   # pipeline Python
+│   ├── vendor/yolov3/         # backend YOLOv3 classique
+│   ├── weights/               # modèles locaux, ignorés par Git
+│   ├── runs/                  # sorties, ignorées par Git
+│   └── yolov3.py
+│
+└── AI-Detection-YOLO-Dataset-Preparation/
+    ├── dataset/
+    ├── dataset_gender/
+    ├── datasets/coco128/
+    ├── prepare_openimages_gender.py
+    └── dataset_inspection.py
 ```
 
-Pour chaque `images/train/photo.jpg`, il faut un
-`labels/train/photo.txt`. Chaque ligne de label vaut :
+La préparation des données est décrite dans le README du dossier
+`AI-Detection-YOLO-Dataset-Preparation`.
 
-```text
-class_id x_centre y_centre largeur hauteur
-```
+## Démarrage rapide
 
-Les quatre coordonnees sont normalisees entre 0 et 1. Modifiez
-`data/dataset.yaml` pour nommer vos classes. Exemple :
-
-```yaml
-names:
-  0: roi_blanc
-  1: roi_noir
-  2: pion_blanc
-```
-
-## 3. Choisir le modele dans la commande
-
-L'option `--model` permet de changer de modele sans changer de script :
+### Vérifier l'environnement
 
 ```bash
-# YOLOv3 classique
-python yolov3.py predict --model yolov3 --source 0 --classes 0 --device mps --view
-
-# YOLOv3-Tiny, plus rapide mais moins precis
-python yolov3.py predict --model yolov3-tiny --source 0 --classes 0 --device mps --view
-
-# YOLO26 Nano, recommande pour la webcam sur le Mac M3
-python yolov3.py predict --model yolo26n --source 0 --classes 0 --device mps --view
+source .venv-yolov3/bin/activate
+python yolov3.py check
 ```
 
-Les autres tailles YOLO26 fonctionnent de la meme maniere : `yolo26s`,
-`yolo26m`, `yolo26l` et `yolo26x`. Plus le modele est grand, plus il est
-generalement precis et lent.
-
-Un checkpoint moderne personnalise peut aussi etre selectionne directement :
-
-```bash
-python yolov3.py predict --model runs/train/custom-yolo/weights/best.pt --source 0 --device mps --view
-```
-
-Pour un ancien checkpoint YOLOv3 classique, conservez l'option `--weights`.
-
-## 4. Entrainer sur de nouvelles classes
-
-Fine-tuning recommande avec les poids COCO :
-
-```bash
-python yolov3.py train \
-  --model yolov3 \
-  --data data/dataset.yaml \
-  --epochs 100 \
-  --batch-size 8 \
-  --device cpu
-```
-
-Sur Linux avec un GPU NVIDIA, utilisez `--device 0`. Sur un Mac Apple Silicon,
-vous pouvez utiliser `--device mps` seulement si `python yolov3.py check`
-affiche `MPS disponible : True`. Sinon, gardez `--device cpu` et reduisez
-eventuellement `--batch-size` et `--imgsz`.
-
-Pour entrainer toute l'architecture avec des poids aleatoires :
-
-```bash
-python yolov3.py train --data data/dataset.yaml --scratch --device cpu
-```
-
-Avec YOLO26n :
-
-```bash
-python yolov3.py train \
-  --model yolo26n \
-  --data data/gender.yaml \
-  --epochs 50 \
-  --batch-size 8 \
-  --device mps \
-  --name yolo26-gender
-```
-
-Profil plus rapide recommande sur un Mac M3 :
+### Entraîner un modèle récent
 
 ```bash
 python yolov3.py train \
   --model yolo26n \
   --data data/gender.yaml \
   --epochs 30 \
-  --batch-size 16 \
-  --imgsz 416 \
-  --cache ram \
-  --workers 4 \
-  --device mps \
-  --name yolo26-gender-fast
+  --batch-size 8 \
+  --imgsz 640 \
+  --device cpu \
+  --name yolo26-gender
 ```
 
-Ce profil met les images en cache dans la memoire unifiee et traite deux fois
-plus d'images par lot. La resolution 416 reduit le calcul par rapport a 640,
-avec un compromis raisonnable pour la detection de personnes. Si macOS signale
-un manque de memoire, reduisez seulement `--batch-size` de 16 a 8.
-
-Le meilleur modele est normalement ecrit dans :
+Le meilleur checkpoint est normalement écrit dans :
 
 ```text
-runs/train/custom-yolo/weights/best.pt
+runs/train/yolo26-gender/weights/best.pt
 ```
 
-## 5. Tester le modele
-
-Sur une image :
+### Tester un checkpoint sur une image
 
 ```bash
 python yolov3.py predict \
-  --weights runs/train/custom-yolov3/weights/best.pt \
-  --source chemin/vers/image.jpg \
-  --device cpu
+  --model weights/gender_best.pt \
+  --source ../AI-Detection-YOLO-Dataset-Preparation/dataset_gender/images/val/010d9a7f0d2e0622.jpg \
+  --device cpu \
+  --name test-image
 ```
 
-Sur la webcam, remplacez la source par `0`. Les images annotees sont ecrites
-dans `runs/predict/`.
+Le résultat annoté est enregistré dans `runs/predict/test-image/`.
 
-Evaluation sur le jeu de validation :
+### Évaluer un checkpoint
 
 ```bash
 python yolov3.py val \
-  --weights runs/train/custom-yolov3/weights/best.pt \
+  --model runs/train/yolo26-gender/weights/best.pt \
+  --data data/gender.yaml \
+  --batch-size 8 \
+  --device cpu \
+  --name evaluation-gender
+```
+
+## Choisir un modèle
+
+| Valeur | Backend utilisé |
+|---|---|
+| `--model yolov3` | YOLOv3 classique |
+| `--model yolov3-spp` | YOLOv3-SPP classique |
+| `--model yolov3-tiny` | YOLOv3-Tiny classique |
+| `--weights chemin.pt` | checkpoint YOLOv3 classique |
+| `--model yolo26n` | modèle Ultralytics dans `weights/yolo26n.pt` |
+| `--model chemin/best.pt` | checkpoint Ultralytics personnalisé |
+
+Exemple YOLOv3 classique :
+
+```bash
+python yolov3.py train \
+  --model yolov3 \
+  --data data/gender.yaml \
+  --epochs 100 \
+  --batch-size 8 \
+  --device cpu \
+  --name yolov3-gender
+```
+
+Pour partir de poids aléatoires :
+
+```bash
+python yolov3.py train \
+  --model yolov3 \
   --data data/dataset.yaml \
+  --scratch \
   --device cpu
 ```
 
-## Fichiers importants
+## Inférence
 
-- `yolov3.py` : script Python a utiliser.
-- `data/dataset.yaml` : chemins et noms des classes.
-- `data/gender.yaml` : dataset Open Images `Man` / `Woman` converti en YOLO.
-- `weights/yolov3.pt` : poids YOLOv3 pre-entraines sur COCO.
-- `weights/yolo26n.pt` : poids YOLO26 Nano pre-entraines sur COCO.
-- `vendor/yolov3` : implementation amont, revision
-  `34c3f2108b73031647b293a7e73603d90e5a208b`.
+### Image
 
-La preparation des datasets est documentee dans
-`../AI-Detection-YOLO-Dataset-Preparation/README.md`.
+```bash
+python yolov3.py predict \
+  --model weights/gender_best.pt \
+  --source image.jpg \
+  --conf 0.25 \
+  --device cpu
+```
 
-Le code Ultralytics inclus est distribue sous licence AGPL-3.0.
+### Vidéo
+
+```bash
+python yolov3.py predict \
+  --model weights/gender_best.pt \
+  --source video.mp4 \
+  --vid-stride 2 \
+  --device cpu \
+  --name test-video
+```
+
+### Webcam
+
+```bash
+python yolov3.py predict \
+  --model weights/gender_best.pt \
+  --source 0 \
+  --device mps \
+  --view \
+  --name webcam
+```
+
+### Filtrer des classes et sauver les labels
+
+```bash
+python yolov3.py predict \
+  --model yolov3 \
+  --source image.jpg \
+  --classes 0 2 3 \
+  --save-txt \
+  --device cpu
+```
+
+## Configurations de datasets
+
+| Fichier | Rôle |
+|---|---|
+| `data/dataset.yaml` | modèle générique pour un dataset personnalisé |
+| `data/gender.yaml` | dataset Open Images en deux classes d'apparence |
+| `data/coco128.yaml` | petit dataset COCO pour les tests rapides |
+
+Structure attendue :
+
+```text
+dataset/
+├── images/{train,val,test}/
+└── labels/{train,val,test}/
+```
+
+Chaque fichier de label contient une ligne par objet :
+
+```text
+class_id x_centre y_centre largeur hauteur
+```
+
+Les quatre coordonnées sont normalisées entre `0` et `1`.
+
+## Options utiles
+
+### Entraînement
+
+| Option | Défaut | Rôle |
+|---|---:|---|
+| `--data` | `data/dataset.yaml` | configuration du dataset |
+| `--epochs` | `100` | nombre d'époques |
+| `--batch-size` | `8` | taille des lots |
+| `--imgsz` | `640` | résolution d'entrée |
+| `--workers` | `4` | processus de chargement |
+| `--cache` | désactivé | cache `ram` ou `disk` |
+| `--freeze` | `0` | premières couches à geler |
+| `--scratch` | désactivé | entraînement sans poids pré-entraînés |
+| `--project` | `runs/train` | dossier de sortie |
+| `--name` | `custom-yolo` | nom de l'expérience |
+
+### Prédiction
+
+| Option | Défaut | Rôle |
+|---|---:|---|
+| `--source` | obligatoire | image, vidéo, dossier, URL ou caméra |
+| `--conf` | `0.25` | seuil minimal de confiance |
+| `--classes` | toutes | classes à conserver |
+| `--vid-stride` | `1` | intervalle entre les frames traitées |
+| `--view` | désactivé | affichage en direct |
+| `--save-txt` | désactivé | export texte des détections |
+| `--half` | désactivé | calcul FP16 sur matériel compatible |
+
+### Périphérique
+
+| Option | Matériel |
+|---|---|
+| `--device cpu` | processeur |
+| `--device mps` | GPU Apple Silicon |
+| `--device 0` | premier GPU NVIDIA |
+| `--device 0,1` | plusieurs GPU CUDA si supporté |
+
+Utilisez `mps` uniquement si `python yolov3.py check` affiche
+`MPS disponible : True`.
+
+## Sorties
+
+```text
+runs/
+├── train/<experience>/
+│   ├── weights/best.pt
+│   ├── weights/last.pt
+│   ├── args.yaml
+│   ├── results.csv
+│   └── courbes et matrices de confusion
+├── predict/<execution>/
+│   └── images ou vidéos annotées
+└── val/<evaluation>/
+    └── métriques et graphiques
+```
+
+- `best.pt` : meilleur checkpoint selon la validation ;
+- `last.pt` : état de la dernière époque ;
+- `results.csv` : évolution des pertes et métriques ;
+- `args.yaml` : paramètres de l'expérience.
+
+Tous ces fichiers sont ignorés par Git.
+
+## Stocker les modèles sur Hugging Face
+
+Les poids ne doivent pas être ajoutés au dépôt GitHub. Pour un stockage privé et
+versionné :
+
+```bash
+hf auth login
+
+hf repos create <compte>/ai-detection-yolo-models \
+  --type model \
+  --private
+
+hf upload <compte>/ai-detection-yolo-models \
+  runs/train/yolo26-gender/weights/best.pt \
+  yolo26-gender/best.pt
+```
+
+Téléchargement :
+
+```bash
+hf download <compte>/ai-detection-yolo-models \
+  yolo26-gender/best.pt \
+  --local-dir weights/
+```
+
+## Commandes d'aide
+
+```bash
+python yolov3.py --help
+python yolov3.py train --help
+python yolov3.py predict --help
+python yolov3.py val --help
+```
+
+Après l'installation éditable, `yolov3 --help` est équivalent à
+`python yolov3.py --help`.
+
+## Problèmes fréquents
+
+### Dépendances absentes
+
+```bash
+source .venv-yolov3/bin/activate
+python -m pip install -e .
+python yolov3.py check
+```
+
+### Dataset introuvable
+
+Vérifiez que `AI-Detection-YOLO` et
+`AI-Detection-YOLO-Dataset-Preparation` sont voisins. Sinon, modifiez la clé
+`path:` dans le YAML concerné.
+
+### Manque de mémoire
+
+Réduisez dans cet ordre :
+
+1. `--batch-size` ;
+2. l'utilisation de `--cache ram` ;
+3. `--imgsz` ;
+4. `--workers`.
+
+### Modèle introuvable
+
+- modèle récent : `--model weights/modele.pt` ;
+- YOLOv3 classique : `--weights chemin/checkpoint.pt` ;
+- liste locale : `python yolov3.py check`.
+
+## Documentation approfondie
+
+- [Architecture, entraînement, inférence, métriques et limites](docs/PROJECT_EXPLANATION.md)
+- préparation des datasets :
+  `../AI-Detection-YOLO-Dataset-Preparation/README.md`
+
+## Licence
+
+Le code Ultralytics présent dans `vendor/yolov3` est distribué sous licence
+AGPL-3.0. Vérifiez également les conditions d'utilisation des datasets et des
+poids avant toute redistribution.
